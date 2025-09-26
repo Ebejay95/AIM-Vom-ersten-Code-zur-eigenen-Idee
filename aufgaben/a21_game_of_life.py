@@ -1,50 +1,16 @@
 #!/usr/bin/env python3
 """
-Aufgabe: Conway's Game of Life (mit Fenster + Startmustern)
+Aufgabe: Conway's Game of Life (CLI, bounded grid, keine GUI/X)
 
-Ziel
-----
-Implementiere die Kernlogik des zellulären Automaten und zeige ihn in einer
-kleinen Tkinter-Oberfläche an. Die Tests prüfen ausschließlich die **Logik**.
-
-Regeln (bounded grid)
----------------------
-- Wir verwenden einen **begrenzten** Raster (außen ist "tot").
-- Für jede Generation:
-  - Eine lebende Zelle mit 2 oder 3 Nachbarn überlebt.
-  - Eine tote Zelle mit genau 3 Nachbarn wird geboren.
-  - Sonst bleibt/ist sie tot.
-
-Core-API (vom Test verwendet)
------------------------------
-- Klasse `LifeGrid(w, h)`:
-  - `width`, `height`
-  - `set_alive(x, y)`, `set_dead(x, y)`, `is_alive(x, y) -> bool`
-  - `clear()`: alles tot
-  - `step()`: eine Generation weiter (in-place Update)
-  - `seed_pattern(name: str, at: tuple[int,int]=(0,0))`: platziert ein Startmuster
-    (case-insensitive). Verfügbare Namen:
-      - "blinker", "toad", "beacon", "glider", "lwss" (lightweight spaceship)
-  - `alive_cells() -> set[tuple[int,int]]`: Koordinaten lebender Zellen
-
-UI (nicht testrelevant)
------------------------
-- Tkinter-Fenster mit Canvas; Buttons: Start/Stop, Step, Clear, Random, Muster-Auswahl.
-- Zellengröße 12–16px ist okay.
-- Simulationstakt ~100ms (after).
-
-Hinweise
---------
-- Die Tests prüfen: Blinker-Oszillation, Glider-Drift (nach 4 Schritten um (1,1)).
-- Achte auf **bounded** Verhalten (kein Wrap-around).
+Die Tests prüfen ausschließlich die Logik-Klasse LifeGrid (inkl. seed_pattern).
+Hier zusätzlich eine textbasierte main() zum manuellen Spielen/Simulieren.
 """
-
 from __future__ import annotations
 import random
 from dataclasses import dataclass
+from time import sleep
 
 # ====== MODEL ===============================================================
-
 @dataclass(frozen=True)
 class Size:
     width: int
@@ -114,8 +80,8 @@ class LifeGrid:
     # --- patterns ---
     def seed_pattern(self, name: str, at: tuple[int, int] = (0, 0)) -> None:
         """
-        Platziert ein vordefiniertes Muster mit linkem oberen Offset `at`.
         Namen (case-insensitive): blinker, toad, beacon, glider, lwss
+        Koordinaten sind relativ zu 'at' (linke obere Ecke).
         """
         name = (name or "").strip().lower()
         patterns: dict[str, list[tuple[int, int]]] = {
@@ -135,104 +101,89 @@ class LifeGrid:
         for dx, dy in coords:
             self.set_alive(ox + dx, oy + dy)
 
-
-# ====== UI (nicht testrelevant) =============================================
+# ====== CLI (rein Terminal) ================================================
+def _render(grid: LifeGrid) -> str:
+    # 'O' für lebend, '.' für tot
+    rows = []
+    alive = grid.alive_cells()
+    for y in range(grid.height):
+        row = []
+        for x in range(grid.width):
+            row.append('O' if (x, y) in alive else '.')
+        rows.append(''.join(row))
+    return "\n".join(rows)
 
 def main() -> None:
+    print("Conway's Game of Life (CLI)")
     try:
-        import tkinter as tk
-        from tkinter import ttk
+        w = int(input("Breite [50]: ") or "50")
+        h = int(input("Höhe   [30]: ") or "30")
     except Exception:
-        print("Tkinter nicht verfügbar – die Logikklasse LifeGrid ist trotzdem nutzbar.")
-        return
+        w, h = 50, 30
+    g = LifeGrid(w, h)
 
-    CELL = 14
-    W, H = 50, 30
-    running = {"flag": False}
+    def helptext():
+        print("\nKommandos:")
+        print("  r <p>     : pattern setzen (blinker|toad|beacon|glider|lwss) zentriert")
+        print("  n         : zufällig füllen (15%)")
+        print("  c         : clear")
+        print("  s [k]     : k Schritte (default 1)")
+        print("  a [ms]    : auto-run (ms Delay, default 100) – ENTER stoppt nächsten Prompt")
+        print("  t x y     : toggle Zelle (x,y)")
+        print("  q         : quit\n")
 
-    grid = LifeGrid(W, H)
+    helptext()
+    while True:
+        print(_render(g))
+        cmd = input("\n> ").strip().split()
+        if not cmd:
+            continue
+        op = cmd[0].lower()
 
-    root = tk.Tk()
-    root.title("Conway's Game of Life")
-    canvas = tk.Canvas(root, width=W*CELL, height=H*CELL, bg="white")
-    canvas.pack()
-
-    top = tk.Frame(root)
-    top.pack(pady=6)
-
-    pattern_var = tk.StringVar(value="glider")
-    ttk.Label(top, text="Pattern:").pack(side=tk.LEFT, padx=4)
-    ttk.Combobox(top, textvariable=pattern_var, values=["blinker","toad","beacon","glider","lwss"], width=10).pack(side=tk.LEFT)
-
-    def draw():
-        canvas.delete("all")
-        for (x, y) in grid.alive_cells():
-            x0, y0 = x * CELL, y * CELL
-            canvas.create_rectangle(x0, y0, x0+CELL, y0+CELL, outline="", fill="black")
-
-    def step():
-        grid.step()
-        draw()
-
-    def toggle_run():
-        running["flag"] = not running["flag"]
-        btn_run.config(text="Stop" if running["flag"] else "Start")
-        if running["flag"]:
-            loop()
-
-    def loop():
-        if not running["flag"]:
-            return
-        grid.step()
-        draw()
-        root.after(100, loop)
-
-    def do_clear():
-        grid.clear()
-        draw()
-
-    def do_random():
-        grid.clear()
-        for y in range(H):
-            for x in range(W):
-                if random.random() < 0.15:
-                    grid.set_alive(x, y)
-        draw()
-
-    def place_pattern():
-        # platziere zentriert
-        name = pattern_var.get()
-        grid.clear()
-        ox = max(0, W//2 - 5)
-        oy = max(0, H//2 - 3)
-        try:
-            grid.seed_pattern(name, (ox, oy))
-        except ValueError:
-            pass
-        draw()
-
-    btn_run = ttk.Button(top, text="Start", command=toggle_run)
-    btn_run.pack(side=tk.LEFT, padx=4)
-    ttk.Button(top, text="Step", command=step).pack(side=tk.LEFT, padx=4)
-    ttk.Button(top, text="Clear", command=do_clear).pack(side=tk.LEFT, padx=4)
-    ttk.Button(top, text="Random", command=do_random).pack(side=tk.LEFT, padx=4)
-    ttk.Button(top, text="Pattern", command=place_pattern).pack(side=tk.LEFT, padx=4)
-
-    # Maus: Zellen setzen/löschen
-    def on_click(event):
-        x, y = event.x // CELL, event.y // CELL
-        if grid.in_bounds(x, y):
-            if grid.is_alive(x, y):
-                grid.set_dead(x, y)
-            else:
-                grid.set_alive(x, y)
-            draw()
-
-    canvas.bind("<Button-1>", on_click)
-
-    draw()
-    root.mainloop()
-
+        if op == 'q':
+            break
+        elif op == 'c':
+            g.clear()
+        elif op == 'n':
+            g.clear()
+            for y in range(g.height):
+                for x in range(g.width):
+                    if random.random() < 0.15:
+                        g.set_alive(x, y)
+        elif op == 'r':
+            pat = (cmd[1] if len(cmd) > 1 else "glider").lower()
+            g.clear()
+            ox = max(0, g.width // 2 - 5)
+            oy = max(0, g.height // 2 - 3)
+            try:
+                g.seed_pattern(pat, (ox, oy))
+            except ValueError as e:
+                print(e)
+        elif op == 's':
+            k = int(cmd[1]) if len(cmd) > 1 else 1
+            for _ in range(max(1, k)):
+                g.step()
+        elif op == 'a':
+            delay = int(cmd[1]) if len(cmd) > 1 else 100
+            try:
+                while True:
+                    g.step()
+                    print("\x1b[H\x1b[J", end="")  # clear screen
+                    print(_render(g))
+                    sleep(max(0.01, delay/1000))
+            except KeyboardInterrupt:
+                print("\nStop.")
+        elif op == 't' and len(cmd) >= 3:
+            try:
+                x, y = int(cmd[1]), int(cmd[2])
+                if g.is_alive(x, y):
+                    g.set_dead(x, y)
+                else:
+                    g.set_alive(x, y)
+            except Exception:
+                print("Nutze: t x y")
+        else:
+            helptext()
 
 if __name__ == "__main__":
     main()
