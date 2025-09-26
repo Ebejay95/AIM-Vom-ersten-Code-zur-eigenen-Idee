@@ -1,0 +1,12 @@
+{
+  "a00_hello_world": {
+    "attempts": 1,
+    "solved": true,
+    "updated_at": "2025-09-26T10:37:45.212628Z"
+  },
+  "a20_tic_tac_toe": {
+    "attempts": 2,
+    "solved": true,
+    "updated_at": "2025-09-26T10:27:34.830045Z"
+  }
+}

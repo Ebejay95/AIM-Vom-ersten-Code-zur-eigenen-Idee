@@ -1,21 +1,35 @@
 #!/usr/bin/env python3
 """
-Aufgabe: Notenverwaltung
-Erstelle ein Programm zur Verwaltung von Schulnoten:
-- Note hinzufügen
-- Alle Noten anzeigen
-- Durchschnitt berechnen
-- Beste/schlechteste Note finden
+Aufgabe: Wörter zählen
+
+Lies eine einzelne Zeile Text von der Konsole ein und gib aus:
+1) Die Gesamtanzahl der Wörter.
+2) Die Häufigkeiten der einzelnen Wörter.
+
+Definitionen (zur Testbarkeit):
+- Wörter werden **case-insensitive** gezählt (z. B. "Hallo" == "hallo").
+- Du darfst vor der Zählung den Text auf Kleinbuchstaben normalisieren.
+- Einfache Trennung nach Leerzeichen reicht (Sonderfälle sind hier egal).
+- Das Ausgabeformat ist frei, solange die **Zahlen** und **Wörter** erkennbar sind.
 
 Beispiel:
-=== Notenverwaltung ===
-1. Note hinzufügen
-2. Noten anzeigen
-3. Durchschnitt
-4. Beenden
-Wahl: 1
-Note (1-6): 2
-Note 2 hinzugefügt.
+Eingabe:  "Hallo hallo Welt Welt Welt"
+Ausgabe (Beispiel-Layout):
+  Anzahl: 5
+  hallo: 2
+  welt: 3
+(Die Reihenfolge der Wörter ist beliebig.)
+
+Tipps:
+- Nutze dict oder collections.Counter für die Häufigkeiten.
 """
 
-# TODO: Schreibe hier deinen Code
+# TODO: Schreibe hier deinen Code (Funktionen optional)
+
+def main():
+    # TODO: Implementieren
+    pass
+
+
+if __name__ == "__main__":
+    main()
